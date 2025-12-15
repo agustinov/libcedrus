@@ -47,7 +47,7 @@ static struct cedrus
 	pthread_mutex_t device_lock;
 } ve = { .fd = -1, .device_lock = PTHREAD_MUTEX_INITIALIZER };
 
-EXPORT struct cedrus *cedrus_open(void)
+EXPORT cedrus_t *cedrus_open(void)
 {
 	pthread_mutex_lock(&open_lock);
 	if (ve.fd != -1) {
@@ -96,14 +96,16 @@ EXPORT struct cedrus *cedrus_open(void)
 	ioctl(ve.fd, IOCTL_SET_VE_FREQ + ve.ioctl_offset, 320);
 	ioctl(ve.fd, IOCTL_RESET_VE + ve.ioctl_offset, 0);
 
-	writel(0x00130007, ve.regs + VE_CTRL);
+	writel(0x00130000 | VE_CTRL_ENGINE_RESET, ve.regs + VE_CTRL);
 
+	//printf("[libcedrus SUNXI] VE version 0x%04x opened\n", ve.version);
 	open_count++;
 	pthread_mutex_unlock(&open_lock);
 	return &ve;
 
 unmap:
 	munmap(ve.regs, 0x800);
+
 close:
 	close(ve.fd);
 	ve.fd = -1;
@@ -152,11 +154,11 @@ EXPORT int cedrus_ve_wait(struct cedrus *dev, int timeout)
 	if (!dev)
 		return -1;
 
-	if (((reg = readl(dev->regs + VE_CTRL)) & CEDRUS_ENGINE_H264_ENC) == CEDRUS_ENGINE_H264_ENC) {
+	if (((reg = readl(dev->regs + VE_CTRL)) & VE_CTRL_ENGINE_FIELD) == VE_CTRL_ENGINE_AVC) {
 		engine_wait = IOCTL_WAIT_VE_DE + dev->ioctl_offset;
 	}
 
-	//printf("we engine %04X, we wait %d\n", reg, engine_wait);
+	//printf("ve engine %04X, ve wait %d\n", reg, engine_wait);
 
 	return ioctl(dev->fd, engine_wait, timeout);
 }
@@ -166,7 +168,7 @@ EXPORT void *cedrus_ve_get(struct cedrus *dev, enum cedrus_engine engine, uint32
 	if (!dev || pthread_mutex_lock(&dev->device_lock))
 		return NULL;
 
-	writel(0x00130000 | (engine & 0xf) | (flags & ~0xf), dev->regs + VE_CTRL);
+	writel(0x00130000 | (engine & VE_CTRL_ENGINE_FIELD) | (flags & ~VE_CTRL_ENGINE_FIELD), dev->regs + VE_CTRL);
 
 	return dev->regs;
 }
@@ -176,7 +178,7 @@ EXPORT void cedrus_ve_put(struct cedrus *dev)
 	if (!dev)
 		return;
 
-	writel(0x00130007, dev->regs + VE_CTRL);
+	writel(0x00130000 | VE_CTRL_ENGINE_RESET, dev->regs + VE_CTRL);
 	pthread_mutex_unlock(&dev->device_lock);
 }
 

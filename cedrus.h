@@ -22,10 +22,16 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "cedrus_regs.h"
 
 typedef struct cedrus cedrus_t;
 
-enum cedrus_engine { CEDRUS_ENGINE_MPEG = 0x0, CEDRUS_ENGINE_H264 = 0x1, CEDRUS_ENGINE_HEVC = 0x4, CEDRUS_ENGINE_H264_ENC = 0xb };
+enum cedrus_engine {
+	CEDRUS_ENGINE_MPEG = VE_CTRL_ENGINE_MPEG,
+	CEDRUS_ENGINE_H264 = VE_CTRL_ENGINE_H264,
+	CEDRUS_ENGINE_HEVC = VE_CTRL_ENGINE_HEVC,
+	CEDRUS_ENGINE_AVC = VE_CTRL_ENGINE_AVC
+};
 
 cedrus_t *cedrus_open(void);
 void cedrus_close(cedrus_t *dev);
